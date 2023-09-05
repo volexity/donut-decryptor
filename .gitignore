@@ -1,0 +1,9 @@
+.DS_Store
+.vscode/
+__pycache__/
+samples/*/*
+bin_samples/*
+inst_*
+mod_*
+*.log
+cli_proxy.py
