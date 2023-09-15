@@ -20,6 +20,9 @@ Following installation, a command-line script is available. For usage instructio
 ```bash
 donut-decryptor --help
 ```
+### Requirements
+
+`donut-decryptor` currently reqires the separate installation of the [chaskey-lts](https://github.com/volexity/chaskey-lts) module.
 
 ## Examples
 
