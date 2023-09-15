@@ -76,7 +76,8 @@ class DonutDecryptor():
             filepath (str): Qualified path of the file containing the instance
             version (str): A supported donut version string. Any of:
                         '1.0', '0.9.3', '0.9.2', '0.9.1', or '0.9'
-            bitness (str): either '32' or '64', indicates the
+            bitness (str): Indicates the bit width of the shellcode. Must be one of:
+                        '32' or '64'
             offset_loader (int): Offset in file to start of the donut loader
 
         Returns:
