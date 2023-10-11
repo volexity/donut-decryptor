@@ -84,7 +84,7 @@ instance_offset_map = {
         'module_length': offset(0x758, 'Q')
     },
     '0.9.2': {
-        'size_instance': 0xC70,
+        'size_instance': 0x2060,
         'encryption_start': 0x230,
         'instance_key': offset(4, '16s'),
         'instance_nonce': offset(0x14, '16s'),
@@ -96,7 +96,7 @@ instance_offset_map = {
         'module_type': offset(0x748, 'I'),
         'module_key': offset(0x720, '16s'),
         'module_nonce': offset(0x730, '16s'),
-        'module_length': offset(0x740, 'Q')
+        'module_length': offset(0x2058, 'Q')
     },
     '0.9.3': {
         'size_instance': 0xE48,

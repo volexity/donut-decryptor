@@ -330,14 +330,15 @@ class DonutDecryptor():
             inst_data['Module Nonce'] = mod_nonce
         else:
             logger.error("Invalid instance type. Something went very wrong")
-            ############################################################
-            # Uncomment to dump full binary instance on parsing error
-            # outfile = (
-            #     os.path.join(outdir, 'test_' + os.path.basename(self.filepath))
-            # )
-            # with open(outfile, 'wb') as f:
-            #     f.write(self.instance)
-            ############################################################
+        ############################################################
+        # Uncomment to dump full binary instance
+        ############################################################
+        # outfile = (
+        #     os.path.join(outdir, 'test_' + os.path.basename(self.filepath))
+        # )
+        # with open(outfile, 'wb') as f:
+        #     f.write(self.instance)
+        ############################################################
 
         # Write instance info to file
         out_inst = os.path.join(outdir, 'inst_' + os.path.basename(self.filepath))
