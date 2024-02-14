@@ -1,9 +1,21 @@
+# OS/Editor Metafiles
 .DS_Store
 .vscode/
+
+# pyenv Metafiles
+.python-version
+
+# Precompled files
 __pycache__/
+
+# Python distribution / packaging
+build/
+*.egg-info/
+
+# Possible temporary testing files
+*.log
+cli_proxy.py
 samples/*/*
 bin_samples/*
 inst_*
 mod_*
-*.log
-cli_proxy.py

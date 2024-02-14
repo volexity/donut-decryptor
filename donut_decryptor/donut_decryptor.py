@@ -163,19 +163,25 @@ class DonutDecryptor():
             # Read file at least up to the instance offset
             b = f.read(self.offset_loader_start)
 
+        logger.info(f"Locating instance in file: {self.filepath}")
+
         # Search backwards for the 'pop rcx'
-        instance_end = 0
+        instance_head = 0
         for x in range(len(b)-1, 0, -1):
             if b[x] == 0x59:
-                instance_end = x
+                instance_head = x
+                logger.debug(f"Found instance preamble starting at: {hex(x)}")
                 break
         # Search backwards for a 'call' instruction with offset to 'pop rcx'
-        for x in range(instance_end-self.offsets['size_instance'], -1, -1):
+        for x in range(instance_head, -1, -1):
             if b[x] == 0xe8:
                 call_offset = struct.unpack_from('<I', b, x+1)[0]
-                ie = instance_end - x + 1
-                if ie >= call_offset + 5 & ie - call_offset + 5 <= 16:
-                    self.raw_instance = b[x+5:instance_end]
+                interval = instance_head - x
+                logger.debug(f"Found possible call to preamble offset at: {hex(x)},"
+                            f"Call offset: {hex(call_offset+5)}, interval size: {hex(interval)}")
+                if interval >= call_offset + 5 and interval - call_offset + 5 <= 16:
+                    logger.info(f"Found instance at: {hex(x+5)}")
+                    self.raw_instance = b[x+5:instance_head]
                     break
 
         if hasattr(self, 'raw_instance'):
@@ -195,12 +201,16 @@ class DonutDecryptor():
             entropy = (
                 struct.unpack_from(off.format, self.raw_instance, off.pos)[0]
             )
-            if entropy <= len(ENTROPY_TYPES):
+            if entropy and entropy <= len(ENTROPY_TYPES):
                 self.entropy = ENTROPY_TYPES[entropy-1]
+            elif entropy == 0:
+                # Handling for anomalous value that can occur in 0.9.3_2 instances
+                self.entropy = ENTROPY_TYPES[0]
             else:
-                raise ValueError("Error: Invalid entropy type")
+                raise ValueError(f"Error: Invalid entropy type: {entropy}")
+            logger.debug(f"Entropy type: {self.entropy}. Entropy enum: {entropy}")
 
-        if not self.entropy or self.entropy == 'DONUT_ENTROPY_DEFAULT':
+        if self.entropy is None or self.entropy == 'DONUT_ENTROPY_DEFAULT':
             # Extract Key and Nonce from instance
             key_offset = self.offsets['instance_key']
             nonce_offset = self.offsets['instance_nonce']
@@ -213,6 +223,8 @@ class DonutDecryptor():
 
             # Extract and decrypt cipher text from instance
             cipher = Chaskey('ctr', key, nonce)
+            logger.debug(f"Decrypting instance of length: {len(self.raw_instance)}"
+                         f"with {key} and nonce: {nonce}")
 
             dec = cipher.decrypt(self.raw_instance[self.offsets['encryption_start']:])
             if not dec:
@@ -221,7 +233,9 @@ class DonutDecryptor():
             self.instance = self.raw_instance[:self.offsets['encryption_start']] + dec
             return True
         else:
+            logger.info("No encryption, setting instance to raw instance")
             self.instance = self.raw_instance
+            return True
 
     def _decompress_module(self) -> bytes:
         mod_data = self.instance[self.offsets['size_instance']:]

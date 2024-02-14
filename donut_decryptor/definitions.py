@@ -285,6 +285,12 @@ loader_version_map = {
             '0.9.3'
         ),
         loader_mapping(
+            [   # 093__2__loader_exe_x64
+                loader_offset(0x35, 0x1f)
+            ],
+            '0.9.3'
+        ),
+        loader_mapping(
             [   # 093_200107_loader_exe_x64
                 loader_offset(0x35, 0x8f)
             ],
