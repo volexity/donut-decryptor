@@ -3,50 +3,47 @@
 # Builtins
 from __future__ import annotations
 
-import logging
-import os
-import struct
 import json
-from typing import List, Union
+import logging
+import struct
+from pathlib import Path
 
 # Installables
 import aplib
-from chaskey import Chaskey  # available from the Volexity Github
 import lznt1
 import yara
+from chaskey import Chaskey
 
 # locals
-from .definitions import (
-    MOD_TYPES,
-    INST_TYPES,
+from donut_decryptor.definitions import (
     COMP_TYPES,
     ENTROPY_TYPES,
-    loader_version_map,
-    loader_mapping,
+    INST_TYPES,
+    MOD_TYPES,
+    LoaderMapping,
+    Offset,
     instance_offset_map,
+    loader_version_map,
 )
-
 
 logger = logging.getLogger(__name__)
 
-RULES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "data",
-                          "rules.yar")
+RULES_PATH = Path(__file__).parent / "data" / "rules.yar"
 
 
-class DonutDecryptor():
+class DonutDecryptor:
     """Extractor/Decryptor for the donut binary obfuscator."""
 
-    rules = yara.compile(filepath=RULES_PATH)
+    rules = yara.compile(filepath=str(RULES_PATH))
 
-    def _map_loader_to_instance(self, loader_mappings: List[loader_mapping]) -> Union[str, None]:
+    def _map_loader_to_instance(self, loader_mappings: list[LoaderMapping]) -> str | None:
         if not loader_mappings:
             return None
 
         if len(loader_mappings) == 1:
             return loader_mappings[0].version
 
-        with open(self.filepath, 'rb') as f:
+        with self.filepath.open("rb") as f:
             # Have to read at least 0x70b (1803) bytes base on the largest
             # disambiguation offset listed in definitions.py
             f.seek(self.offset_loader_start)
@@ -54,18 +51,15 @@ class DonutDecryptor():
 
         for mapping in loader_mappings:
             c = 0
-            while c < len(mapping.offsets):
-                if loader_chunk[mapping.offsets[c].pos] != mapping.offsets[c].value:
+            while c < len(mapping.offsets):  # type: ignore[arg-type]
+                if loader_chunk[mapping.offsets[c].pos] != mapping.offsets[c].value:  # type: ignore[arg-type,index]
                     break
                 c += 1
-            if c == len(mapping.offsets):
+            if c == len(mapping.offsets):  # type: ignore[arg-type]
                 return mapping.version
+        return None
 
-    def __init__(self,
-                 filepath: str,
-                 loader_version: str,
-                 bitness: str,
-                 offset_loader: int) -> None:
+    def __init__(self, filepath: Path, loader_version: str, bitness: str, offset_loader: int) -> None:
         """Initialize a donut_decryptor.
 
         NOTE: donut_decryptor is not designed to be initialized directly. It's
@@ -74,6 +68,7 @@ class DonutDecryptor():
         Args:
             self: Object instance
             filepath (str): Qualified path of the file containing the instance
+            loader_version (str): The donut loader version string.
             version (str): A supported donut version string. Any of:
                         '1.0', '0.9.3', '0.9.2', '0.9.1', or '0.9'
             bitness (str): Indicates the bit width of the shellcode. Must be one of:
@@ -82,34 +77,39 @@ class DonutDecryptor():
 
         Returns:
             None
-        """
-        if bitness not in ['64', '32']:
-            raise ValueError(f'Error: Unsupported bitness value provided: {bitness}')
 
-        if not os.path.isfile(filepath):
-            raise ValueError(f'Error: Invalid filepath provided: {filepath}')
+        """
+        if bitness not in ["64", "32"]:
+            msg = f"Error: Unsupported bitness value provided: {bitness}"
+            raise ValueError(msg)
+
+        if not filepath.is_file():
+            msg = f"Error: Invalid filepath provided: {filepath}"
+            raise ValueError(msg)
 
         self.filepath = filepath
         self.offset_loader_start = offset_loader
-        self.loader_version = loader_version + '_' + bitness
+        self.loader_version = loader_version + "_" + bitness
 
         loader_mappings = loader_version_map.get(self.loader_version, None)
 
         if not loader_mappings:
-            raise ValueError(f'Error: unsupported loader version: {self.loader_version}')
+            msg = f"Error: unsupported loader version: {self.loader_version}"
+            raise ValueError(msg)
 
         self.instance_version = self._map_loader_to_instance(loader_mappings)
 
-        logger.info(f"Parsing donut from file: {filepath} with loader version: "
-                    f"{self.loader_version}, and instance version: {self.instance_version}")
+        logger.info("Parsing donut from file: %s ", filepath)
+        logger.info("Using %s, and instance version: %s", self.loader_version, self.instance_version)
 
         if self.instance_version not in instance_offset_map:
-            raise ValueError(f'Error: unsupported instance version: {self.instance_version}')
+            msg = f"Error: unsupported instance version: {self.instance_version}"
+            raise ValueError(msg)
 
         self.offsets = instance_offset_map[self.instance_version]
 
     @classmethod
-    def find_donuts(cls, filepath: str) -> List[DonutDecryptor]:
+    def find_donuts(cls, filepath: Path) -> list[DonutDecryptor]:  # noqa: C901
         """Find donuts in `filepath`.
 
         Class method to find donuts in `filepath` for donut shellcode and return a
@@ -120,13 +120,15 @@ class DonutDecryptor():
             filepath (str): Qualified path of the file to scan
 
         Returns:
-            list[donut_dcryptor]: Contains one entry per unique instance
-        """
-        if not os.path.isfile(filepath):
-            raise ValueError(f'Error: Invalid filepath provided: {filepath}')
+            list[donut_decryptor]: Contains one entry per unique instance
 
-        matches = cls.rules.match(filepath)
-        results = []
+        """
+        if not filepath.is_file():
+            msg = f"Error: Invalid filepath provided: {filepath}"
+            raise ValueError(msg)
+
+        matches = cls.rules.match(str(filepath))
+        results: list[DonutDecryptor] = []
         if len(matches) == 0:
             return results
 
@@ -137,17 +139,17 @@ class DonutDecryptor():
             # If both x64 and x86 loaders are found in the same file it's
             # likely a case of DONUT_ARCH_X84 config type, which uses the same
             # instance for both loaders, so skip the secondary x86 loader
-            if len(matches) == 2 and bitness == '64':
+            if len(matches) == 2 and bitness == "64":  # noqa: PLR2004
                 found_x64_loader = True
-            if bitness == '32' and found_x64_loader:
+            if bitness == "32" and found_x64_loader:
                 continue
 
             # Handle matches
             if len(m.strings) > 1:
-                logger.error(f"Warning: Found multiple of same loader string in file: {m.strings}")
+                logger.error(f"Warning: Found multiple of same loader string in file: {m.strings}")  # noqa: G004
 
             for s in m.strings:
-                if s.identifier != '$raw_bin':
+                if s.identifier != "$raw_bin":
                     # TODO: Identify alternative instance type, Decode to
                     # binary and process
                     logger.error("Warning: found unsupported instance format...skipping")
@@ -155,227 +157,207 @@ class DonutDecryptor():
                 if len(s.instances) > 1:
                     logger.error("Warning: found two instance of same loader pattern")
                 for i in s.instances:
-                    results.append(DonutDecryptor(filepath, loader_version, bitness, i.offset))
+                    results.extend([DonutDecryptor(filepath, loader_version, bitness, i.offset)])
         return results
 
     def _locate_instance(self) -> bool:
-        with open(self.filepath, 'rb') as f:
+        with self.filepath.open("rb") as f:
             # Read file at least up to the instance offset
             b = f.read(self.offset_loader_start)
 
-        logger.info(f"Locating instance in file: {self.filepath}")
+        logger.info("Locating instance in file: %s", self.filepath)
 
         # Search backwards for the 'pop rcx'
         instance_head = 0
-        for x in range(len(b)-1, 0, -1):
-            if b[x] == 0x59:
+        for x in range(len(b) - 1, 0, -1):
+            if b[x] == 0x59:  # noqa: PLR2004
                 instance_head = x
-                logger.debug(f"Found instance preamble starting at: {hex(x)}")
+                logger.debug("Found instance preamble starting at: %s", hex(x))
                 break
         # Search backwards for a 'call' instruction with offset to 'pop rcx'
         for x in range(instance_head, -1, -1):
-            if b[x] == 0xe8:
-                call_offset = struct.unpack_from('<I', b, x+1)[0]
+            if b[x] == 0xE8:  # noqa: PLR2004
+                call_offset = struct.unpack_from("<I", b, x + 1)[0]
                 interval = instance_head - x
-                logger.debug(f"Found possible call to preamble offset at: {hex(x)},"
-                            f"Call offset: {hex(call_offset+5)}, interval size: {hex(interval)}")
-                if interval >= call_offset + 5 and interval - call_offset + 5 <= 16:
-                    logger.info(f"Found instance at: {hex(x+5)}")
-                    self.raw_instance = b[x+5:instance_head]
+                logger.debug(
+                    "Found possible call to preamble offset at: %s,Call offset: %s, interval size: %s",
+                    hex(x),
+                    hex(call_offset + 5),
+                    hex(interval),
+                )
+                if interval >= call_offset + 5 and interval - call_offset + 5 <= 16:  # noqa: PLR2004
+                    logger.info("Found instance at: %s", hex(x + 5))
+                    self.raw_instance = b[x + 5 : instance_head]
                     break
 
-        if hasattr(self, 'raw_instance'):
+        if hasattr(self, "raw_instance"):
             return True
-        else:
-            logger.error(f"Failed to find instance in {self.filepath}")
-            return False
-        raise Exception("Unreachable code reached.")
+        logger.error("Failed to find instance in %s", self.filepath)
+        return False
 
     def _decrypt_instance(self) -> bool:
-        if not hasattr(self, 'raw_instance'):
-            raise AttributeError("Error: Need an instance to decrypt")
+        if not hasattr(self, "raw_instance"):
+            msg = "Error: Need an instance to decrypt"
+            raise AttributeError(msg)
 
         self.entropy = None
-        if 'entropy' in self.offsets:
-            off = self.offsets['entropy']
-            entropy = (
-                struct.unpack_from(off.format, self.raw_instance, off.pos)[0]
-            )
+        if "entropy" in self.offsets:
+            off: Offset = self.offsets["entropy"]  # type: ignore[assignment]
+            entropy = struct.unpack_from(off.format, self.raw_instance, off.pos)[0]
             if entropy and entropy <= len(ENTROPY_TYPES):
-                self.entropy = ENTROPY_TYPES[entropy-1]
+                self.entropy = ENTROPY_TYPES[entropy - 1]
             elif entropy == 0:
                 # Handling for anomalous value that can occur in 0.9.3_2 instances
                 self.entropy = ENTROPY_TYPES[0]
             else:
-                raise ValueError(f"Error: Invalid entropy type: {entropy}")
-            logger.debug(f"Entropy type: {self.entropy}. Entropy enum: {entropy}")
-
-        if self.entropy is None or self.entropy == 'DONUT_ENTROPY_DEFAULT':
+                msg = f"Error: Invalid entropy type: {entropy}"
+                raise ValueError(msg)
+            logger.debug("Entropy type: %s. Entropy enum: %s", self.entropy, entropy)
+        if self.entropy is None or self.entropy == "DONUT_ENTROPY_DEFAULT":
             # Extract Key and Nonce from instance
-            key_offset = self.offsets['instance_key']
-            nonce_offset = self.offsets['instance_nonce']
-            key = struct.unpack_from(key_offset.format,
-                                     self.raw_instance,
-                                     key_offset.pos)[0]
-            nonce = struct.unpack_from(nonce_offset.format,
-                                       self.raw_instance,
-                                       nonce_offset.pos)[0]
+            key_offset: Offset = self.offsets["instance_key"]  # type: ignore[assignment]
+            nonce_offset: Offset = self.offsets["instance_nonce"]  # type: ignore[assignment]
+            key = struct.unpack_from(key_offset.format, self.raw_instance, key_offset.pos)[0]
+            nonce = struct.unpack_from(nonce_offset.format, self.raw_instance, nonce_offset.pos)[0]
 
             # Extract and decrypt cipher text from instance
-            cipher = Chaskey('ctr', key, nonce)
-            logger.debug(f"Decrypting instance of length: {len(self.raw_instance)}"
-                         f"with {key} and nonce: {nonce}")
-
-            dec = cipher.decrypt(self.raw_instance[self.offsets['encryption_start']:])
+            cipher = Chaskey("ctr", key, nonce)
+            logger.debug(
+                "Decrypting instance of length: %d with key: %s and nonce: %s",
+                len(self.raw_instance),
+                key,
+                nonce,
+            )
+            enc_start: int = self.offsets["encryption_start"]  # type:ignore[assignment]
+            dec = cipher.decrypt(self.raw_instance[enc_start:])
             if not dec:
                 return False
-
-            self.instance = self.raw_instance[:self.offsets['encryption_start']] + dec
+            self.instance = self.raw_instance[:enc_start] + dec
             return True
-        else:
-            logger.info("No encryption, setting instance to raw instance")
-            self.instance = self.raw_instance
-            return True
+        logger.info("No encryption, setting instance to raw instance")
+        self.instance = self.raw_instance
+        return True
 
     def _decompress_module(self) -> bytes:
-        mod_data = self.instance[self.offsets['size_instance']:]
+        size: int = self.offsets["size_instance"]  # type: ignore[assignment]
+        mod_data = self.instance[size:]
         if self.compression_type_name is not None:
-            off = self.offsets['module_compressed_len']
+            off: Offset = self.offsets["module_compressed_len"]  # type: ignore[assignment]
             compressed_len = struct.unpack_from(off.format, self.instance, off.pos)[0]
-            logger.debug(f"Decompressing compression_type: {self.compression_type_name}")
+            logger.debug("Decompressing compression_type: %s", self.compression_type_name)
             if self.compression_type_name != "DONUT_COMPRESS_NONE":
                 mod_data = mod_data[:compressed_len]
-                if self.compression_type_name == 'DONUT_COMPRESS_APLIB':
+                if self.compression_type_name == "DONUT_COMPRESS_APLIB":
                     mod_data = aplib.decompress(mod_data)
-                elif self.compression_type_name == 'DONUT_COMPRESS_LZNT1':
+                elif self.compression_type_name == "DONUT_COMPRESS_LZNT1":
                     mod_data = lznt1.decompress(mod_data)
-                elif self.compression_type_name == 'DONUT_COMPRESS_XPRESS':
-                    logger.error(f"Unsupported compression_type: {self.compression_type_name}")
-                    raise ValueError("Error: Xpress decompression is not supported")
+                elif self.compression_type_name == "DONUT_COMPRESS_XPRESS":
+                    msg = "Error: Xpress decompression is not supported"
+                    raise ValueError(msg)
                 else:
-                    raise ValueError("Error: Unexpected compression_type encountered:"
-                                     f"{self.compression_type_name}")
+                    msg = f"Error: Unexpected compression_type encountered:{self.compression_type_name}"
+                    raise ValueError(msg)
         return mod_data
 
-    def _write_module(self, outdir: str, mod_data: bytes) -> None:
-        out_mod = os.path.join(outdir,
-                               f'mod_{os.path.basename(self.filepath)}')
-        logger.info(f"Writing module to: {out_mod}")
-        with open(out_mod, 'wb') as f:
+    def _write_module(self, outdir: Path, mod_data: bytes) -> None:
+        out_mod = outdir / f"mod_{Path(self.filepath).name}"
+        logger.info("Writing module to: %s", out_mod)
+        with out_mod.open("wb") as f:
             f.write(mod_data)
 
-    def _write_instance(self, outdir: str) -> None:
+    def _write_instance(self, outdir: Path) -> None:  # noqa: C901, PLR0912, PLR0915
         inst_data = {}
-        inst_data['File'] = self.filepath
-        off = self.offsets['instance_type']
+        inst_data["File"] = self.filepath
+        off: Offset = self.offsets["instance_type"]  # type: ignore[assignment]
         instance_type = struct.unpack_from(off.format, self.instance, off.pos)[0]
 
         if instance_type <= len(INST_TYPES):
-            instance_type_name = INST_TYPES[instance_type-1]
-            inst_data['Instance Type'] = instance_type_name
+            instance_type_name = INST_TYPES[instance_type - 1]
+            inst_data["Instance Type"] = instance_type_name
         else:
-            raise ValueError("Error: Instance type parsing failed")
-        logger.debug(f"Got instance of type: {instance_type} , {instance_type_name}")
+            msg = "Error: Instance type parsing failed"
+            raise ValueError(msg)
+        logger.debug("Got instance of type: %s , %s", instance_type, instance_type_name)
 
         if self.entropy:
-            inst_data['Entropy Type'] = self.entropy
+            inst_data["Entropy Type"] = self.entropy
 
-        if 'decoy_module' in self.offsets:
-            off = self.offsets['decoy_module']
-            decoy = struct.unpack_from(off.format, self.instance, off.pos)[0]
-            inst_data['Decoy Module'] = decoy.decode().strip('\0')
+        if "decoy_module" in self.offsets:
+            decoy_off: Offset = self.offsets["decoy_module"]  # type: ignore[assignment]
+            decoy = struct.unpack_from(decoy_off.format, self.instance, decoy_off.pos)[0]
+            inst_data["Decoy Module"] = decoy.decode().strip("\0")
 
-        if instance_type_name == 'DONUT_INSTANCE_EMBED':
+        if instance_type_name == "DONUT_INSTANCE_EMBED":
             # Get module information if type is DONUT_INSTANCE_EMBED
-            off = self.offsets['module_type']
-            module_type = (
-                struct.unpack_from(off.format, self.instance, off.pos)[0]
-            )
+            mod_type_off: Offset = self.offsets["module_type"]  # type: ignore[assignment]
+            module_type = struct.unpack_from(mod_type_off.format, self.instance, mod_type_off.pos)[0]
             if module_type <= len(MOD_TYPES):
-                inst_data['Module Type'] = MOD_TYPES[module_type-1]
+                inst_data["Module Type"] = MOD_TYPES[module_type - 1]
             else:
-                raise ValueError("Error: module type parsing failed")
+                msg = "Error: module type parsing failed"
+                raise ValueError(msg)
             # Compression added in 0.9.3, only output if offset is present
-            if 'module_compression_type' not in self.offsets:
+            if "module_compression_type" not in self.offsets:
                 self.compression_type_name = None
             else:
-                off = self.offsets['module_compression_type']
-                comp_type = (
-                    struct.unpack_from(off.format, self.instance, off.pos)[0]
-                )
+                comp_type_off: Offset = self.offsets["module_compression_type"]  # type: ignore[assignment]
+                comp_type = struct.unpack_from(comp_type_off.format, self.instance, comp_type_off.pos)[0]
                 if comp_type <= len(COMP_TYPES):
-                    self.compression_type_name = COMP_TYPES[comp_type-1]
-                    logger.debug(f"Setting compression type to: {self.compression_type_name}")
-                    inst_data['Compression Type'] = self.compression_type_name
+                    self.compression_type_name = COMP_TYPES[comp_type - 1]
+                    logger.debug("Setting compression type to: %s", self.compression_type_name)
+                    inst_data["Compression Type"] = self.compression_type_name
                 else:
-                    raise ValueError("Error: module compression type parsing failed")
-            self._write_module(outdir=outdir,
-                               mod_data=self._decompress_module())
+                    msg = "Error: module compression type parsing failed"
+                    raise ValueError(msg)
+            self._write_module(outdir=outdir, mod_data=self._decompress_module())
 
-        elif instance_type_name in ['DONUT_INSTANCE_HTTP', 'DONUT_INSTANCE_DNS']:
-            off = self.offsets['download_uri']
-            uri = struct.unpack_from(off.format, self.instance, off.pos)[0]
-            inst_data['Download URL'] = uri.decode().strip('\0')
+        elif instance_type_name in ["DONUT_INSTANCE_HTTP", "DONUT_INSTANCE_DNS"]:
+            uri_off: Offset = self.offsets["download_uri"]  # type: ignore[assignment]
+            uri = struct.unpack_from(uri_off.format, self.instance, uri_off.pos)[0]
+            inst_data["Download URL"] = uri.decode().strip("\0")
             # Username and Password added in 1.0, only output if offset is
             # present
-            if 'download_username' in self.offsets:
-                off = self.offsets['download_username']
-                username = struct.unpack_from(off.format,
-                                              self.instance,
-                                              off.pos)[0]
-                inst_data['Download Username'] = username.decode().strip('\0')
-            if 'download_password' in self.offsets:
-                off = self.offsets['download_password']
-                password = struct.unpack_from(off.format,
-                                              self.instance,
-                                              off.pos)[0]
-                inst_data['Download Password'] = password.decode().strip('\0')
+            if "download_username" in self.offsets:
+                user_off: Offset = self.offsets["download_username"]  # type: ignore[assignment]
+                username = struct.unpack_from(user_off.format, self.instance, user_off.pos)[0]
+                inst_data["Download Username"] = username.decode().strip("\0")
+            if "download_password" in self.offsets:
+                pswd_off: Offset = self.offsets["download_password"]  # type: ignore[assignment]
+                password = struct.unpack_from(pswd_off.format, self.instance, pswd_off.pos)[0]
+                inst_data["Download Password"] = password.decode().strip("\0")
 
-            off = self.offsets['module_key']
-            mod_key = struct.unpack_from(off.format,
-                                         self.instance,
-                                         off.pos)[0]
-            inst_data['Module Key'] = mod_key
+            key_off: Offset = self.offsets["module_key"]  # type: ignore[assignment]
+            mod_key = struct.unpack_from(key_off.format, self.instance, key_off.pos)[0]
+            inst_data["Module Key"] = mod_key
 
-            off = self.offsets['module_nonce']
-            mod_nonce = (
-                struct.unpack_from(off.format, self.instance, off.pos)[0]
-            )
-            inst_data['Module Nonce'] = mod_nonce
+            nonce_off: Offset = self.offsets["module_nonce"]  # type: ignore[assignment]
+            mod_nonce = struct.unpack_from(nonce_off.format, self.instance, nonce_off.pos)[0]
+            inst_data["Module Nonce"] = mod_nonce
         else:
             logger.error("Invalid instance type. Something went very wrong")
-        ############################################################
-        # Uncomment to dump full binary instance
-        ############################################################
-        # outfile = (
-        #     os.path.join(outdir, 'test_' + os.path.basename(self.filepath))
-        # )
-        # with open(outfile, 'wb') as f:
-        #     f.write(self.instance)
-        ############################################################
 
-        # Write instance info to file
-        out_inst = os.path.join(outdir, 'inst_' + os.path.basename(self.filepath))
-        logger.info(f"Writing instance meta data to: {out_inst}")
-        with open(out_inst, 'w') as f:
-            f.write(json.dumps(inst_data, indent=4))
+        out_inst = Path(outdir) / f"inst_{Path(self.filepath).name}"
+        logger.info("Writing instance meta data to: %s", out_inst)
+        with out_inst.open("w") as f:
+            f.write(json.dumps(inst_data, indent=4, default=str))
 
-    def parse(self, outdir: str) -> bool:
+    def parse(self, outdir: Path) -> bool:
         """Extract and decrypt instance data and embedded module from a donut.
 
         Args:
             self: Object instance
-            outdir (str): Directory to write output files to
+            outdir (Path): Directory to write output files to
 
         Returns:
             bool: Indicates successful extraction
-        """
-        logger.debug(f"Trying to parse {self.filepath} of version {self.instance_version}")
-        if not os.path.isdir(outdir):
-            raise ValueError('Error: Invalid outdir provided')
 
-        if (self._locate_instance() and self._decrypt_instance()):
+        """
+        logger.debug("Trying to parse %s of version %s", self.filepath, self.instance_version)
+        if not outdir.is_dir():
+            msg = "Error: Invalid outdir provided"
+            raise ValueError(msg)
+
+        if self._locate_instance() and self._decrypt_instance():
             self._write_instance(outdir)
             return True
-        else:
-            return False
+        return False
