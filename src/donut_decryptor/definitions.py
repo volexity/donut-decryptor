@@ -34,17 +34,23 @@ INST_TYPES = (
 )
 
 
-class Offset(NamedTuple):  # noqa: D101
+class Offset(NamedTuple):
+    """Offset in file."""
+
     pos: int
     format: str
 
 
-class LoaderMapping(NamedTuple):  # noqa: D101
-    offsets: list | None
+class LoaderMapping(NamedTuple):
+    """Loader offsets for a given version."""
+
+    offsets: list[LoaderOffset] | None
     version: str
 
 
-class LoaderOffset(NamedTuple):  # noqa: D101
+class LoaderOffset(NamedTuple):
+    """Expected value at a given offset."""
+
     pos: int
     value: int
 
@@ -66,10 +72,10 @@ class LoaderOffset(NamedTuple):  # noqa: D101
 #   Instance. The dictionary below correlates all known unique alignments of
 #   the DONUT_INSTANCE with their tracked names
 
-instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
+instance_offset_map: dict[str, dict[str, Offset]] = {
     "0.9": {
-        "size_instance": 0x588,
-        "encryption_start": 0x24,
+        "size_instance": Offset(0x588, ""),
+        "encryption_start": Offset(0x24, ""),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
         "hash_iv": Offset(0x128, "Q"),
@@ -83,8 +89,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_length": Offset(0x418, "Q"),
     },
     "0.9.1": {
-        "size_instance": 0xC88,
-        "encryption_start": 0x24,
+        "size_instance": Offset(0xC88, ""),
+        "encryption_start": Offset(0x24, ""),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
         "hash_iv": Offset(0x2A8, "Q"),
@@ -98,8 +104,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_length": Offset(0x758, "Q"),
     },
     "0.9.2": {
-        "size_instance": 0x2060,
-        "encryption_start": 0x230,
+        "size_instance": Offset(0x2060, ""),
+        "encryption_start": Offset(0x230, ""),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
         "hash_iv": Offset(0x28, "Q"),
@@ -113,8 +119,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_length": Offset(0x2058, "Q"),
     },
     "0.9.3": {
-        "size_instance": 0xE48,
-        "encryption_start": 0x240,
+        "size_instance": Offset(0xE48, ""),
+        "encryption_start": Offset(0x240, ""),
         "entropy": Offset(0x234, "i"),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
@@ -131,8 +137,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_compressed_len": Offset(0xE40, "I"),
     },
     "0.9.3_A": {
-        "size_instance": 0xF48,
-        "encryption_start": 0x240,
+        "size_instance": Offset(0xF48, ""),
+        "encryption_start": Offset(0x240, ""),
         "entropy": Offset(0x234, "i"),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
@@ -150,8 +156,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_compressed_len": Offset(0xF40, "I"),
     },
     "0.9.3_B": {
-        "size_instance": 0x1048,
-        "encryption_start": 0x240,
+        "size_instance": Offset(0x1048, ""),
+        "encryption_start": Offset(0x240, ""),
         "entropy": Offset(0x234, "i"),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
@@ -170,8 +176,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_compressed_len": Offset(0x1040, "I"),
     },
     "0.9.3_C": {
-        "size_instance": 0x1060,
-        "encryption_start": 0x240,
+        "size_instance": Offset(0x1060, ""),
+        "encryption_start": Offset(0x240, ""),
         "entropy": Offset(0x234, "i"),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
@@ -190,8 +196,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_compressed_len": Offset(0x1058, "I"),
     },
     "0.9.3_D": {
-        "size_instance": 0x1078,
-        "encryption_start": 0x240,
+        "size_instance": Offset(0x1078, ""),
+        "encryption_start": Offset(0x240, ""),
         "entropy": Offset(0x234, "i"),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
@@ -210,8 +216,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_compressed_len": Offset(0x1070, "I"),
     },
     "0.9.3_E": {
-        "size_instance": 0x1078,
-        "encryption_start": 0x240,
+        "size_instance": Offset(0x1078, ""),
+        "encryption_start": Offset(0x240, ""),
         "entropy": Offset(0x234, "i"),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
@@ -230,8 +236,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "module_compressed_len": Offset(0x1070, "I"),
     },
     "0.9.3_F": {
-        "size_instance": 0x1288,
-        "encryption_start": 0x240,
+        "size_instance": Offset(0x1288, ""),
+        "encryption_start": Offset(0x240, ""),
         "entropy": Offset(0x234, "i"),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),
@@ -251,8 +257,8 @@ instance_offset_map: dict[str, dict[str, str | int | Offset]] = {
         "decoy_module": Offset(0x629, "520s"),
     },
     "1.0": {
-        "size_instance": 0x1288,
-        "encryption_start": 0x23C,
+        "size_instance": Offset(0x1288, ""),
+        "encryption_start": Offset(0x23C, ""),
         "entropy": Offset(0x234, "i"),
         "instance_key": Offset(4, "16s"),
         "instance_nonce": Offset(0x14, "16s"),

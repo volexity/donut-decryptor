@@ -1,6 +1,5 @@
 """All logic for decrypting donuts."""
 
-# Builtins
 from __future__ import annotations
 
 import json
@@ -8,13 +7,11 @@ import logging
 import struct
 from pathlib import Path
 
-# Installables
 import aplib
 import lznt1
 import yara
 from chaskey import Chaskey
 
-# locals
 from donut_decryptor.definitions import (
     COMP_TYPES,
     ENTROPY_TYPES,
@@ -50,13 +47,14 @@ class Decryptor:
             loader_chunk = f.read(1804)
 
         for mapping in loader_mappings:
-            c = 0
-            while c < len(mapping.offsets):  # type: ignore[arg-type]
-                if loader_chunk[mapping.offsets[c].pos] != mapping.offsets[c].value:  # type: ignore[arg-type,index]
-                    break
-                c += 1
-            if c == len(mapping.offsets):  # type: ignore[arg-type]
-                return mapping.version
+            if mapping.offsets:
+                c = 0
+                while c < len(mapping.offsets):
+                    if loader_chunk[mapping.offsets[c].pos] != mapping.offsets[c].value:
+                        break
+                    c += 1
+                if c == len(mapping.offsets):
+                    return mapping.version
         return None
 
     def __init__(self, filepath: Path, loader_version: str, bitness: str, offset_loader: int) -> None:
@@ -146,7 +144,7 @@ class Decryptor:
 
             # Handle matches
             if len(m.strings) > 1:
-                logger.error(f"Warning: Found multiple of same loader string in file: {m.strings}")  # noqa: G004
+                logger.warning("Found multiple of same loader string in file: %s", m.strings)
 
             for s in m.strings:
                 if s.identifier != "$raw_bin":
@@ -202,7 +200,7 @@ class Decryptor:
 
         self.entropy = None
         if "entropy" in self.offsets:
-            off: Offset = self.offsets["entropy"]  # type: ignore[assignment]
+            off: Offset = self.offsets["entropy"]
             entropy = struct.unpack_from(off.format, self.raw_instance, off.pos)[0]
             if entropy and entropy <= len(ENTROPY_TYPES):
                 self.entropy = ENTROPY_TYPES[entropy - 1]
@@ -215,8 +213,8 @@ class Decryptor:
             logger.debug("Entropy type: %s. Entropy enum: %s", self.entropy, entropy)
         if self.entropy is None or self.entropy == "DONUT_ENTROPY_DEFAULT":
             # Extract Key and Nonce from instance
-            key_offset: Offset = self.offsets["instance_key"]  # type: ignore[assignment]
-            nonce_offset: Offset = self.offsets["instance_nonce"]  # type: ignore[assignment]
+            key_offset: Offset = self.offsets["instance_key"]
+            nonce_offset: Offset = self.offsets["instance_nonce"]
             key = struct.unpack_from(key_offset.format, self.raw_instance, key_offset.pos)[0]
             nonce = struct.unpack_from(nonce_offset.format, self.raw_instance, nonce_offset.pos)[0]
 
@@ -228,7 +226,7 @@ class Decryptor:
                 key,
                 nonce,
             )
-            enc_start: int = self.offsets["encryption_start"]  # type:ignore[assignment]
+            enc_start: int = self.offsets["encryption_start"].pos
             dec = cipher.decrypt(self.raw_instance[enc_start:])
             if not dec:
                 return False
@@ -239,10 +237,10 @@ class Decryptor:
         return True
 
     def _decompress_module(self) -> bytes:
-        size: int = self.offsets["size_instance"]  # type: ignore[assignment]
+        size: int = self.offsets["size_instance"].pos
         mod_data = self.instance[size:]
         if self.compression_type_name is not None:
-            off: Offset = self.offsets["module_compressed_len"]  # type: ignore[assignment]
+            off: Offset = self.offsets["module_compressed_len"]
             compressed_len = struct.unpack_from(off.format, self.instance, off.pos)[0]
             logger.debug("Decompressing compression_type: %s", self.compression_type_name)
             if self.compression_type_name != "DONUT_COMPRESS_NONE":
@@ -266,33 +264,33 @@ class Decryptor:
             f.write(mod_data)
 
     def _write_instance(self, outdir: Path) -> None:  # noqa: C901, PLR0912, PLR0915
-        inst_data = {}
+        inst_data: dict = {}
         inst_data["File"] = self.filepath
-        off: Offset = self.offsets["instance_type"]  # type: ignore[assignment]
+        off: Offset = self.offsets["instance_type"]
         instance_type = struct.unpack_from(off.format, self.instance, off.pos)[0]
 
         if instance_type <= len(INST_TYPES):
             instance_type_name = INST_TYPES[instance_type - 1]
-            inst_data["Instance Type"] = instance_type_name  # type: ignore[assignment]
+            inst_data["Instance Type"] = instance_type_name
         else:
             msg = "Error: Instance type parsing failed"
             raise ValueError(msg)
         logger.debug("Got instance of type: %s , %s", instance_type, instance_type_name)
 
         if self.entropy:
-            inst_data["Entropy Type"] = self.entropy  # type: ignore[assignment]
+            inst_data["Entropy Type"] = self.entropy
 
         if "decoy_module" in self.offsets:
-            decoy_off: Offset = self.offsets["decoy_module"]  # type: ignore[assignment]
+            decoy_off: Offset = self.offsets["decoy_module"]
             decoy = struct.unpack_from(decoy_off.format, self.instance, decoy_off.pos)[0]
             inst_data["Decoy Module"] = decoy.decode().strip("\0")
 
         if instance_type_name == "DONUT_INSTANCE_EMBED":
             # Get module information if type is DONUT_INSTANCE_EMBED
-            mod_type_off: Offset = self.offsets["module_type"]  # type: ignore[assignment]
+            mod_type_off: Offset = self.offsets["module_type"]
             module_type = struct.unpack_from(mod_type_off.format, self.instance, mod_type_off.pos)[0]
             if module_type <= len(MOD_TYPES):
-                inst_data["Module Type"] = MOD_TYPES[module_type - 1]  # type: ignore[assignment]
+                inst_data["Module Type"] = MOD_TYPES[module_type - 1]
             else:
                 msg = "Error: module type parsing failed"
                 raise ValueError(msg)
@@ -300,37 +298,37 @@ class Decryptor:
             if "module_compression_type" not in self.offsets:
                 self.compression_type_name = None
             else:
-                comp_type_off: Offset = self.offsets["module_compression_type"]  # type: ignore[assignment]
+                comp_type_off: Offset = self.offsets["module_compression_type"]
                 comp_type = struct.unpack_from(comp_type_off.format, self.instance, comp_type_off.pos)[0]
                 if comp_type <= len(COMP_TYPES):
                     self.compression_type_name = COMP_TYPES[comp_type - 1]
                     logger.debug("Setting compression type to: %s", self.compression_type_name)
-                    inst_data["Compression Type"] = self.compression_type_name  # type: ignore[assignment]
+                    inst_data["Compression Type"] = self.compression_type_name
                 else:
                     msg = "Error: module compression type parsing failed"
                     raise ValueError(msg)
             self._write_module(outdir=outdir, mod_data=self._decompress_module())
 
         elif instance_type_name in ["DONUT_INSTANCE_HTTP", "DONUT_INSTANCE_DNS"]:
-            uri_off: Offset = self.offsets["download_uri"]  # type: ignore[assignment]
+            uri_off: Offset = self.offsets["download_uri"]
             uri = struct.unpack_from(uri_off.format, self.instance, uri_off.pos)[0]
             inst_data["Download URL"] = uri.decode().strip("\0")
             # Username and Password added in 1.0, only output if offset is
             # present
             if "download_username" in self.offsets:
-                user_off: Offset = self.offsets["download_username"]  # type: ignore[assignment]
+                user_off: Offset = self.offsets["download_username"]
                 username = struct.unpack_from(user_off.format, self.instance, user_off.pos)[0]
                 inst_data["Download Username"] = username.decode().strip("\0")
             if "download_password" in self.offsets:
-                pswd_off: Offset = self.offsets["download_password"]  # type: ignore[assignment]
+                pswd_off: Offset = self.offsets["download_password"]
                 password = struct.unpack_from(pswd_off.format, self.instance, pswd_off.pos)[0]
                 inst_data["Download Password"] = password.decode().strip("\0")
 
-            key_off: Offset = self.offsets["module_key"]  # type: ignore[assignment]
+            key_off: Offset = self.offsets["module_key"]
             mod_key = struct.unpack_from(key_off.format, self.instance, key_off.pos)[0]
             inst_data["Module Key"] = mod_key
 
-            nonce_off: Offset = self.offsets["module_nonce"]  # type: ignore[assignment]
+            nonce_off: Offset = self.offsets["module_nonce"]
             mod_nonce = struct.unpack_from(nonce_off.format, self.instance, nonce_off.pos)[0]
             inst_data["Module Nonce"] = mod_nonce
         else:
@@ -345,11 +343,10 @@ class Decryptor:
         """Extract and decrypt instance data and embedded module from a donut.
 
         Args:
-            self: Object instance
-            outdir (Path): Directory to write output files to
+            outdir: Directory to write output files to
 
         Returns:
-            bool: Indicates successful extraction
+            Indicates successful extraction
 
         """
         logger.debug("Trying to parse %s of version %s", self.filepath, self.instance_version)
