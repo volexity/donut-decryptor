@@ -16,7 +16,7 @@ logging.basicConfig(format=log_format, level=logging.INFO, stream=sys.stdout)
 def run() -> None:  # noqa: C901, D103
     logger = logging.getLogger(__name__)
     parser = ArgumentParser(prog="donut_decryptor", description="An extractor for the donut obfuscator")
-    parser.add_argument("input_", type=Path, help="File or directory containing file(s) to parse")
+    parser.add_argument("input", type=Path, help="File or directory containing file(s) to parse")
     parser.add_argument(
         "--outdir",
         type=Path,
@@ -36,7 +36,7 @@ def run() -> None:  # noqa: C901, D103
 
     files_to_parse: list[Path] = []
     donuts: list[Decryptor] = []
-    input_: Path = args.input_
+    input_: Path = args.input
 
     # Build a list of files that may contain donuts.
     if input_.is_dir():
