@@ -6,7 +6,7 @@ import traceback
 from argparse import ArgumentParser
 from pathlib import Path
 
-from donut_decryptor._version import __version__
+from donut_decryptor import __version__
 from donut_decryptor.donut_decryptor import DonutDecryptor
 
 log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -70,7 +70,7 @@ def run() -> None:  # noqa: C901, D103
             d.parse(od)
             successes += 1
         except Exception:
-            logger.error("Encountered exception parsing file: %s", d.filepath)
+            logger.error("Encountered exception parsing file: %s", d.filepath)  # noqa: TRY400
             if logger.level == logging.DEBUG:
                 traceback.print_exc()
             if args.pass_on_fail:

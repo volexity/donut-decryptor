@@ -273,14 +273,14 @@ class DonutDecryptor:
 
         if instance_type <= len(INST_TYPES):
             instance_type_name = INST_TYPES[instance_type - 1]
-            inst_data["Instance Type"] = instance_type_name
+            inst_data["Instance Type"] = instance_type_name  # type: ignore[assignment]
         else:
             msg = "Error: Instance type parsing failed"
             raise ValueError(msg)
         logger.debug("Got instance of type: %s , %s", instance_type, instance_type_name)
 
         if self.entropy:
-            inst_data["Entropy Type"] = self.entropy
+            inst_data["Entropy Type"] = self.entropy  # type: ignore[assignment]
 
         if "decoy_module" in self.offsets:
             decoy_off: Offset = self.offsets["decoy_module"]  # type: ignore[assignment]
@@ -292,7 +292,7 @@ class DonutDecryptor:
             mod_type_off: Offset = self.offsets["module_type"]  # type: ignore[assignment]
             module_type = struct.unpack_from(mod_type_off.format, self.instance, mod_type_off.pos)[0]
             if module_type <= len(MOD_TYPES):
-                inst_data["Module Type"] = MOD_TYPES[module_type - 1]
+                inst_data["Module Type"] = MOD_TYPES[module_type - 1]  # type: ignore[assignment]
             else:
                 msg = "Error: module type parsing failed"
                 raise ValueError(msg)
@@ -305,7 +305,7 @@ class DonutDecryptor:
                 if comp_type <= len(COMP_TYPES):
                     self.compression_type_name = COMP_TYPES[comp_type - 1]
                     logger.debug("Setting compression type to: %s", self.compression_type_name)
-                    inst_data["Compression Type"] = self.compression_type_name
+                    inst_data["Compression Type"] = self.compression_type_name  # type: ignore[assignment]
                 else:
                     msg = "Error: module compression type parsing failed"
                     raise ValueError(msg)

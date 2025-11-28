@@ -8,6 +8,7 @@ dynamic = ["version"]
 description = "Decryptor for files containing Donut shellcode"
 readme = "README.md"
 requires-python = ">=3.9"
+keywords = []
 license = "BSD-3-Clause"
 authors = [
     { name = "Volexity", email = "threatintel@volexity.com" },
@@ -24,41 +25,72 @@ classifiers = [
     "Topic :: Security",
 ]
 dependencies = [
-    "aplib",
-    "chaskey",
-    "lznt1",
-    "yara-python>=4.5.0",
+    "aplib ~= 0.6",
+    "chaskey ~= 0.0.4",
+    "lznt1 ~= 0.2",
+    "yara-python ~= 4.5",
 ]
+
+[project.scripts]
+donut-decryptor = "donut_decryptor.cli:run"
 
 [project.urls]
 Documentation = "https://github.com/volexity/donut-decryptor/blob/main/README.md"
 Issues = "https://github.com/volexity/donut-decryptor/issues"
 Source = "https://github.com/volexity/donut-decryptor"
 
-[project.scripts]
-donut-decryptor = "donut_decryptor.cli:run"
+[tool.coverage.paths]
+donut_decryptor = ["src/donut_decryptor", "*/donut-decryptor/src/donut_decryptor"]
+tests = ["tests", "*/donut-decryptor/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.coverage.run]
+source_pkgs = ["donut_decryptor", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/donut_decryptor/_version.py",
+]
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/donut_decryptor/_version.py"
+
+[tool.hatch.envs.default]
+extra-dependencies = [
+  "mypy~=1.0",
+]
+
+[tool.hatch.envs.hatch-static-analysis]
+config-path = "none"
+dependencies = ["ruff~=0.14"]
+
+[tool.hatch.envs.hatch-test]
+extra-dependencies = [
+  "py7zr ~= 1.0",
+]
+
+[[tool.hatch.envs.hatch-test.matrix]]
+python = ["3.13", "3.12", "3.11", "3.10", "3.9"]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/donut_decryptor}"
 
 [tool.hatch.version]
 source = "vcs"
 
-[tool.hatch.build.targets.wheel]
-packages = ["donut_decryptor"]
-
-[tool.hatch.build.hooks.vcs]
-version-file = "donut_decryptor/_version.py"
-
-[tool.mypy]
-explicit_package_bases = true
-files = ["donut_decryptor"]
-
 [[tool.mypy.overrides]]
 module = [
-    "aplib.*",
-    "lznt1.*",
-    "yara.*"
+  "aplib.*",
+  "lznt1.*",
+  "yara.*"
 ]
 ignore_missing_imports = true
-
 
 [tool.ruff]
 line-length = 120
@@ -66,11 +98,23 @@ line-length = 120
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "FIX002",
-    "FBT001",
-    "FBT002",
-    "FBT003",
-    "TD002",
-    "TD003",
-    "TRY400",
+  "COM812",
+  "ISC001",
+  "FIX001",
+  "FIX002",
+  "FIX003",
+  "FIX004",
+  "TD001",
+  "TD002",
+  "TD003"
 ]
+pydocstyle = { convention = 'google' }
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*" = [
+  "D",
+  "S",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["donut_decryptor"]
