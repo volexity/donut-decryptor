@@ -1,53 +1,32 @@
-from argparse import ArgumentParser
+"""CLI interface for Donut-Decryptor."""
+
 import logging
-import os
 import sys
 import traceback
+from argparse import ArgumentParser
+from pathlib import Path
 
-from .donut_decryptor import DonutDecryptor
+from donut_decryptor._version import __version__
+from donut_decryptor.donut_decryptor import DonutDecryptor
 
-
-log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s" 
-logging.basicConfig(format=log_format,
-                    level=logging.INFO,
-                    stream=sys.stdout)
-
-def valid_file_or_dir(s: str) -> str:
-    if os.path.isfile(s):
-        return s
-    if os.path.isdir(s):
-        return s
-    raise ValueError(f"{s} is neither a file nor a directory.")
+log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+logging.basicConfig(format=log_format, level=logging.INFO, stream=sys.stdout)
 
 
-def valid_out_dir(s: str) -> str:
-    if os.path.exists(s) and not os.path.isdir(s):
-        raise ValueError(f"Error: Outdir {s} must be a directory if it " 
-                         "already exists")
-    if not os.path.exists(s):
-        os.mkdir(s)
-    return s
-
-
-def run():
+def run() -> None:  # noqa: C901, D103
     logger = logging.getLogger(__name__)
-    parser = ArgumentParser(prog='donut_decryptor',
-                            description='An extractor for the donut obfuscator')
-    parser.add_argument('input',
-                        type=valid_file_or_dir,
-                        help='File or directory containing file(s) to parse')
-    parser.add_argument('--outdir',
-                        type=valid_out_dir,
-                        help="Directory to write output to. Directory is created if not"
-                        " already existing",
-                        default=os.getcwd())
-    parser.add_argument("--debug",
-                        action="store_true",
-                        help="Print debug information out")
-    parser.add_argument("--pass-on-fail",
-                        action="store_true",
-                        help="Don't raise exceptions when parsing")
-    
+    parser = ArgumentParser(prog="donut_decryptor", description="An extractor for the donut obfuscator")
+    parser.add_argument("input_", type=Path, help="File or directory containing file(s) to parse")
+    parser.add_argument(
+        "--outdir",
+        type=Path,
+        help="Directory to write output to. Directory is created if not already existing",
+        default=Path.cwd(),
+    )
+    parser.add_argument("--debug", action="store_true", help="Print debug information out")
+    parser.add_argument("--pass-on-fail", action="store_true", help="Don't raise exceptions when parsing")
+    parser.add_argument("--version", action="version", version=f"donut-decryptor {__version__}")
+
     args = parser.parse_args()
 
     if args.debug:
@@ -55,48 +34,49 @@ def run():
         for logger in loggers:
             logger.setLevel(logging.DEBUG)
 
-    files_to_parse = []
-    donuts = []
+    files_to_parse: list[Path] = []
+    donuts: list[DonutDecryptor] = []
+    input_: Path = args.input_
 
     # Build a list of files that may contain donuts.
-    if os.path.isdir(args.input):
+    if input_.is_dir():
         logger.debug("Building file list")
-        for root, dirs, files in os.walk(args.input):
-            for f in files:
-                # ignore hidden files
-                if f.startswith("."):
-                    continue
-                ptf = os.path.join(root, f)
-                if os.path.isdir(ptf):
-                    continue
-                files_to_parse.append(ptf)
+        for item in input_.rglob("*"):
+            if item.is_file() and not item.name.startswith("."):
+                files_to_parse.extend([item])
     else:
-        files_to_parse = [args.input]
+        files_to_parse = [input_]
+
+    # Make the output dir if required
+    od: Path = args.outdir
+    if not od.exists():
+        od.mkdir(parents=True, exist_ok=True)
 
     # Collect the donuts
-    logger.debug(f"Finding donuts in: {len(files_to_parse)} files")
-    
+    logger.debug("Finding donuts in: %s files", len(files_to_parse))
+
     for f in files_to_parse:
-        logger.debug(f"Parsing file: {f}")
+        logger.debug("Parsing file: %s", f)
         donuts.extend(DonutDecryptor.find_donuts(f))
 
-    logger.debug(f"Found {len(donuts)} donuts.")
+    logger.debug("Found %s donuts.", len(donuts))
+
     # Parse the donuts
     successes = 0
     attempted = 0
     for d in donuts:
         attempted += 1
         try:
-            d.parse(args.outdir)
-            successes += 1  
-        except Exception as e:
-            logger.error(f"Encountered exception parsing file: {d.filepath}")
+            d.parse(od)
+            successes += 1
+        except Exception:
+            logger.error("Encountered exception parsing file: %s", d.filepath)
             if logger.level == logging.DEBUG:
                 traceback.print_exc()
             if args.pass_on_fail:
                 continue
             raise
-    logger.info(f"Parsed: {successes} of {attempted} attempted files")
+    logger.info("Parsed: %d of %d attempted files", successes, attempted)
 
 
 if __name__ == "__main__":
