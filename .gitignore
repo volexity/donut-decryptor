@@ -1,16 +1,18 @@
 # OS/Editor Metafiles
 .DS_Store
 .vscode/
+.mypy_cache/
 
 # pyenv Metafiles
 .python-version
 
-# Precompled files
+# Precompiled files
 __pycache__/
 
 # Python distribution / packaging
 build/
 *.egg-info/
+donut_decryptor/_version.py
 
 # Possible temporary testing files
 *.log

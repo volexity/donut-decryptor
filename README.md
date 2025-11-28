@@ -21,6 +21,34 @@ Following installation, a command-line script is available. For usage instructio
 donut-decryptor --help
 ```
 
+## Development
+
+This project uses [Hatch](https://hatch.pypa.io/) for project management, [Ruff](https://docs.astral.sh/ruff/) for linting and formatting, and [mypy](https://mypy-lang.org/) for type checking.
+
+### Setup
+
+Install Hatch:
+
+```bash
+pip install hatch
+```
+
+### Running Tests
+
+```bash
+hatch run test
+hatch run test-cov  # with coverage
+```
+
+### Linting and Formatting
+
+```bash
+hatch run lint:style   # check style
+hatch run lint:fmt     # format code and fix issues
+hatch run lint:typing  # run mypy type checking
+hatch run lint:all     # run all checks
+```
+
 ## Examples
 
 The files present in the `samples` directory are 7z files password protected using the password `infected``, all of which contain donuts which can be decoded using this script.
