@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from donut_decryptor import __version__
-from donut_decryptor.donut_decryptor import DonutDecryptor
+from donut_decryptor.decryptor import Decryptor
 
 log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(format=log_format, level=logging.INFO, stream=sys.stdout)
@@ -35,7 +35,7 @@ def run() -> None:  # noqa: C901, D103
             logger.setLevel(logging.DEBUG)
 
     files_to_parse: list[Path] = []
-    donuts: list[DonutDecryptor] = []
+    donuts: list[Decryptor] = []
     input_: Path = args.input_
 
     # Build a list of files that may contain donuts.
@@ -57,7 +57,7 @@ def run() -> None:  # noqa: C901, D103
 
     for f in files_to_parse:
         logger.debug("Parsing file: %s", f)
-        donuts.extend(DonutDecryptor.find_donuts(f))
+        donuts.extend(Decryptor.find_donuts(f))
 
     logger.debug("Found %s donuts.", len(donuts))
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import py7zr
 import pytest
 
-from donut_decryptor.donut_decryptor import DonutDecryptor
+from donut_decryptor.decryptor import Decryptor
 
 archives = ["v092.7z", "v093.7z", "v1.7z"]
 
@@ -20,6 +20,6 @@ def test_decryptor(filename: str) -> None:
         if filename == "v093.7z":
             directory = directory / "v093"
         for sample in directory.iterdir():
-            decryptors = DonutDecryptor.find_donuts(sample)
+            decryptors = Decryptor.find_donuts(sample)
             for decryptor in decryptors:
                 assert decryptor.parse(directory)

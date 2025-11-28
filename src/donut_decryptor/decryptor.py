@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 RULES_PATH = Path(__file__).parent / "data" / "rules.yar"
 
 
-class DonutDecryptor:
+class Decryptor:
     """Extractor/Decryptor for the donut binary obfuscator."""
 
     rules = yara.compile(filepath=str(RULES_PATH))
@@ -109,7 +109,7 @@ class DonutDecryptor:
         self.offsets = instance_offset_map[self.instance_version]
 
     @classmethod
-    def find_donuts(cls, filepath: Path) -> list[DonutDecryptor]:  # noqa: C901
+    def find_donuts(cls, filepath: Path) -> list[Decryptor]:  # noqa: C901
         """Find donuts in `filepath`.
 
         Class method to find donuts in `filepath` for donut shellcode and return a
@@ -128,7 +128,7 @@ class DonutDecryptor:
             raise ValueError(msg)
 
         matches = cls.rules.match(str(filepath))
-        results: list[DonutDecryptor] = []
+        results: list[Decryptor] = []
         if len(matches) == 0:
             return results
 
@@ -157,7 +157,7 @@ class DonutDecryptor:
                 if len(s.instances) > 1:
                     logger.error("Warning: found two instance of same loader pattern")
                 for i in s.instances:
-                    results.extend([DonutDecryptor(filepath, loader_version, bitness, i.offset)])
+                    results.extend([Decryptor(filepath, loader_version, bitness, i.offset)])
         return results
 
     def _locate_instance(self) -> bool:
