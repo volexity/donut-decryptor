@@ -1,0 +1,41 @@
+---
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Install hatch
+        run: python -m pip install --upgrade hatch
+      - name: Run static analysis
+        run: hatch fmt
+      - name: Run type checking
+        run: hatch run types:check
+  test:
+    needs: hygiene
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install hatch
+        run: python -m pip install --upgrade hatch
+      - name: Run tests
+        run: hatch test --python ${{ matrix.python-version }} --cover-quiet --randomize
+          --parallel --retries 5 --retry-delay 3
