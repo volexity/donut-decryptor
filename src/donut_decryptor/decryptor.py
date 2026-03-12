@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import struct
 from pathlib import Path
 
@@ -158,6 +159,22 @@ class Decryptor:
                     results.extend([Decryptor(filepath, loader_version, bitness, i.offset)])
         return results
 
+    @staticmethod
+    def _entropy(data: bytes) -> float:
+        """Calculate the Shannon entropy of a byte stream, returning a value in the range 0.0–8.0."""
+        if not data:
+            return 0
+        counts = [0] * 256
+        for byte in data:
+            counts[byte] += 1
+        length = len(data)
+        entropy = 0.0
+        for count in counts:
+            if count:
+                p = count / length
+                entropy -= p * math.log2(p)
+        return entropy
+
     def _locate_instance(self) -> bool:
         with self.filepath.open("rb") as f:
             # Read file at least up to the instance offset
@@ -190,7 +207,14 @@ class Decryptor:
 
         if hasattr(self, "raw_instance"):
             return True
-        logger.error("Failed to find instance in %s", self.filepath)
+        e = self._entropy(b)
+        if e <= 7.5:
+            logger.error(
+                "Failed to find instance in %s, but file entropy is low, " +
+                "module may not be encrypted. Entropy: %f/8", self.filepath, e
+            )
+        else:
+            logger.error("Failed to find instance in %s", self.filepath)
         return False
 
     def _decrypt_instance(self) -> bool:
