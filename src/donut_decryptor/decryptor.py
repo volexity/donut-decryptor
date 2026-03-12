@@ -161,7 +161,6 @@ class Decryptor:
 
     @staticmethod
     def _entropy(data: bytes) -> float:
-        """Calculate the Shannon entropy of a byte stream, returning a value in the range 0.0–8.0."""
         if not data:
             return 0
         counts = [0] * 256
@@ -208,10 +207,11 @@ class Decryptor:
         if hasattr(self, "raw_instance"):
             return True
         e = self._entropy(b)
-        if e <= 7.5:
+        if e <= 7.5:  # noqa: PLR2004
             logger.error(
-                "Failed to find instance in %s, but file entropy is low, " +
-                "module may not be encrypted. Entropy: %f/8", self.filepath, e
+                "Failed to find instance in %s, but file entropy is low, module may not be encrypted. Entropy: %f/8",
+                self.filepath,
+                e,
             )
         else:
             logger.error("Failed to find instance in %s", self.filepath)
