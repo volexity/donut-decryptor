@@ -51,7 +51,7 @@ hatch run lint:all     # run all checks
 
 ## Examples
 
-The files present in the `samples` directory are 7z files password protected using the password `infected``, all of which contain donuts which can be decoded using this script.
+The files present in the `samples` directory are 7z files password protected using the password `infected`, all of which contain donuts which can be decoded using this script.
 
 ## TODO list
 
