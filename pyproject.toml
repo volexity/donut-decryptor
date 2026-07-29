@@ -63,12 +63,12 @@ version-file = "src/donut_decryptor/_version.py"
 
 [tool.hatch.envs.default]
 extra-dependencies = [
-  "mypy~=1.0",
+  "mypy~=2.0",
 ]
 
 [tool.hatch.envs.hatch-static-analysis]
 config-path = "none"
-dependencies = ["ruff~=0.14"]
+dependencies = ["ruff~=0.16"]
 
 [tool.hatch.envs.hatch-test]
 extra-dependencies = [
@@ -99,6 +99,7 @@ line-length = 120
 select = ["ALL"]
 ignore = [
   "COM812",
+  "CPY001",
   "ISC001",
   "FIX001",
   "FIX002",
